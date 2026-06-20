@@ -7,6 +7,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from "./ui/sheet";
 
 export default function CartDrawer() {
@@ -34,6 +35,9 @@ export default function CartDrawer() {
           <SheetTitle className="font-display text-2xl uppercase tracking-tight text-white">
             Loadout <span className="text-[#FF4500]">/ {count}</span>
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            Your cart with selected gear ready for checkout
+          </SheetDescription>
           <button
             data-testid="cart-drawer-close"
             onClick={() => setDrawerOpen(false)}

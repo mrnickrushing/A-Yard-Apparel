@@ -31,18 +31,18 @@ export default function Header() {
         data-testid="site-header"
         className="sticky top-0 z-40 w-full bg-[#06080C]/90 backdrop-blur-xl border-b border-[#1F2330]"
       >
-        <div className="px-5 md:px-12 h-[92px] flex items-center justify-between">
+        <div className="px-5 md:px-12 h-[68px] sm:h-[76px] md:h-[84px] lg:h-[92px] flex items-center justify-between">
           <Link
             data-testid="logo-home-link"
             to="/home"
-            className="flex items-center gap-4 group"
+            className="flex items-center gap-2 sm:gap-3 lg:gap-4 group"
           >
-            <Logo className="w-16 h-16" />
+            <Logo className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16" />
             <div className="leading-none">
-              <div className="font-display text-4xl tracking-[0.15em] etched-steel">
+              <div className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-[0.15em] etched-steel">
                 AEGIS
               </div>
-              <div className="text-xs font-mono uppercase tracking-[0.3em] text-[#6E7585] mt-1">
+              <div className="hidden sm:block text-[10px] lg:text-xs font-mono uppercase tracking-[0.3em] text-[#6E7585] mt-1">
                 Strength in Order
               </div>
             </div>
@@ -76,11 +76,11 @@ export default function Header() {
             </button>
             <button
               data-testid="mobile-menu-toggle"
-              className="lg:hidden p-2 border border-[#1F2330]"
+              className="lg:hidden p-2.5 border border-[#1F2330]"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle menu"
             >
-              {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function Header() {
                     setMobileOpen(false);
                     navigate(l.to);
                   }}
-                  className="text-left text-sm font-mono uppercase tracking-[0.25em] text-[#A0A6B5] hover:text-white py-2 border-b border-[#1F2330]/60"
+                  className="text-left text-base font-mono uppercase tracking-[0.2em] text-[#A0A6B5] hover:text-white py-3 border-b border-[#1F2330]/60"
                 >
                   {l.label}
                 </button>

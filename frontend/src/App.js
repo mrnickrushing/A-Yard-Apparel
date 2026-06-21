@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import "@/App.css";
@@ -14,6 +14,14 @@ import CampaignList from "./pages/CampaignList";
 import CampaignDetail from "./pages/CampaignDetail";
 import Logbook from "./pages/Logbook";
 import Contact from "./pages/Contact";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function Chrome({ children }) {
   const location = useLocation();
@@ -32,6 +40,7 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <CartProvider>
+          <ScrollToTop />
           <Chrome>
             <Routes>
               <Route path="/" element={<Splash />} />

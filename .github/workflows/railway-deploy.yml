@@ -63,5 +63,5 @@ jobs:
         run: |
           npx -y @sentry/cli@latest releases new "$SENTRY_RELEASE"
           npx -y @sentry/cli@latest releases set-commits "$SENTRY_RELEASE" --auto
-          npx -y @sentry/cli@latest releases files "$SENTRY_RELEASE" upload-sourcemaps build/static/js build/static/css --rewrite --url-prefix "~/static"
+          npx -y @sentry/cli@latest sourcemaps upload --release "$SENTRY_RELEASE" --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" --url-prefix "~/static" --validate build/static/js build/static/css
           npx -y @sentry/cli@latest releases finalize "$SENTRY_RELEASE"

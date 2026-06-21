@@ -31,7 +31,7 @@ export default function Header() {
         data-testid="site-header"
         className="sticky top-0 z-40 w-full bg-[#06080C]/90 backdrop-blur-xl border-b border-[#1F2330]"
       >
-        <div className="max-w-7xl mx-auto px-5 md:px-10 h-[68px] flex items-center justify-between">
+        <div className="px-5 md:px-12 h-[68px] flex items-center justify-between">
           <Link
             data-testid="logo-home-link"
             to="/home"

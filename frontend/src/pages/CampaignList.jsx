@@ -14,7 +14,7 @@ export default function CampaignList() {
     <div className="bg-[#06080C] text-white min-h-screen">
       <section className="border-b border-[#1F2330] relative overflow-hidden">
         <div className="absolute inset-0 warning-stripes opacity-20" />
-        <div className="relative max-w-7xl mx-auto px-5 md:px-10 py-16">
+        <div className="relative px-5 md:px-12 py-16">
           <div className="label mb-2 text-[#D4AF37]">/ Mission Files</div>
           <h1
             data-testid="campaigns-heading"
@@ -30,7 +30,7 @@ export default function CampaignList() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-5 md:px-10 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section className="px-5 md:px-12 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {campaigns.map((c) => {
           const locked = c.status === "coming_soon" || c.status === "classified";
           const accent = c.accent;

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Request, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Request, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -958,6 +959,30 @@ async def admin_delete_contact(message_id: str):
     return {"ok": True}
 
 
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+ALLOWED_UPLOAD_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
+@api_router.post("/admin/uploads", dependencies=[Depends(require_admin)])
+async def admin_upload_file(file: UploadFile = File(...)):
+    ext = ALLOWED_UPLOAD_TYPES.get(file.content_type)
+    if not ext:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+    filename = f"{uuid.uuid4()}{ext}"
+    (UPLOAD_DIR / filename).write_bytes(contents)
+    return {"url": f"{PUBLIC_SITE_URL}/api/uploads/{filename}"}
+
+
 def _build_newsletter_html(subject: str, body: str, email: str) -> str:
     unsub_url = f"{PUBLIC_SITE_URL}/api/newsletter/unsubscribe?email={email}&sig={_unsubscribe_signature(email)}"
     return f"""
@@ -1027,6 +1052,7 @@ async def admin_send_newsletter(payload: NewsletterBlastIn):
 
 # ---------- APP WIRING ----------
 app.include_router(api_router)
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

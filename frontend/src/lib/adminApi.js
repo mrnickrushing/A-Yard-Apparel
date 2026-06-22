@@ -42,3 +42,10 @@ export const deleteContactMessage = async (id) => {
   const { data } = await api.delete(`/admin/contacts/${id}`, { headers: authHeaders() });
   return data;
 };
+
+export const uploadAdminFile = async (file) => {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post("/admin/uploads", form, { headers: authHeaders() });
+  return data;
+};

@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Mail, Send, Trash2, Users, MessageSquare } from "lucide-react";
+import { LogOut, Mail, Paperclip, Send, Trash2, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "../../components/Logo";
 import AdminShell from "./AdminShell";
@@ -12,6 +12,7 @@ import {
   fetchSubscribers,
   getAdminToken,
   sendNewsletterBlast,
+  uploadAdminFile,
 } from "../../lib/adminApi";
 
 const TABS = [
@@ -53,6 +54,9 @@ export default function AdminDashboard() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const bodyRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleAuthError = useCallback(
     (err) => {
@@ -115,6 +119,28 @@ export default function AdminDashboard() {
       if (!handleAuthError(err)) toast.error("Could not send newsletter.");
     }
     setSending(false);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await uploadAdminFile(file);
+      const tag = `<img src="${url}" alt="" style="max-width:100%" />`;
+      const textarea = bodyRef.current;
+      if (textarea) {
+        const { selectionStart, selectionEnd } = textarea;
+        setBody((prev) => prev.slice(0, selectionStart) + tag + prev.slice(selectionEnd));
+      } else {
+        setBody((prev) => prev + tag);
+      }
+      toast.success("File uploaded and inserted.");
+    } catch (err) {
+      if (!handleAuthError(err)) toast.error("Could not upload file.");
+    }
+    setUploading(false);
   };
 
   const removeSubscriber = async (s) => {
@@ -274,9 +300,30 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="label text-[#6E7585] block mb-2">Body (HTML)</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="label text-[#6E7585]">Body (HTML)</label>
+                      <button
+                        type="button"
+                        data-testid="admin-blast-upload-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="flex items-center gap-1.5 text-[#6E7585] hover:text-[#D4AF37] disabled:opacity-50 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors"
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        {uploading ? "Uploading..." : "Upload File"}
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif,image/webp"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        data-testid="admin-blast-upload-input"
+                      />
+                    </div>
                     <textarea
                       data-testid="admin-blast-body"
+                      ref={bodyRef}
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                       required

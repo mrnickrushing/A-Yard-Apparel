@@ -910,20 +910,33 @@ async def newsletter_unsubscribe(email: str, sig: str):
 
 
 # ---------- ADMIN ----------
-def _create_admin_token() -> str:
+async def get_admin_token_secret() -> str:
+    doc = await db.admin_settings.find_one({"id": "admin"}, {"_id": 0})
+    if doc and doc.get("token_secret"):
+        return doc["token_secret"]
+    secret = secrets.token_hex(32)
+    await db.admin_settings.update_one(
+        {"id": "admin"}, {"$set": {"id": "admin", "token_secret": secret}}, upsert=True
+    )
+    return secret
+
+
+async def _create_admin_token() -> str:
+    secret = await get_admin_token_secret()
     payload = {
         "sub": "admin",
         "exp": datetime.now(timezone.utc) + timedelta(seconds=ADMIN_TOKEN_TTL_SECONDS),
     }
-    return jwt.encode(payload, ADMIN_JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 
 async def require_admin(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing admin token")
     token = authorization.split(" ", 1)[1]
+    secret = await get_admin_token_secret()
     try:
-        jwt.decode(token, ADMIN_JWT_SECRET, algorithms=["HS256"])
+        jwt.decode(token, secret, algorithms=["HS256"])
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired admin token")
 
@@ -944,18 +957,25 @@ async def admin_login(payload: AdminLoginIn):
         raise HTTPException(status_code=503, detail="Admin login is not configured")
     if not bcrypt.checkpw(payload.password.encode(), password_hash.encode()):
         raise HTTPException(status_code=401, detail="Incorrect password")
-    return {"token": _create_admin_token()}
+    return {"token": await _create_admin_token()}
 
 
 @api_router.post("/admin/change-password", dependencies=[Depends(require_admin)])
 async def admin_change_password(payload: AdminChangePasswordIn):
     password_hash = await get_admin_password_hash()
     if not password_hash or not bcrypt.checkpw(payload.current_password.encode(), password_hash.encode()):
-        raise HTTPException(status_code=401, detail="Current password is incorrect")
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
     new_hash = bcrypt.hashpw(payload.new_password.encode(), bcrypt.gensalt()).decode()
     await db.admin_settings.update_one(
         {"id": "admin"},
-        {"$set": {"id": "admin", "password_hash": new_hash, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {
+            "$set": {
+                "id": "admin",
+                "password_hash": new_hash,
+                "token_secret": secrets.token_hex(32),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
         upsert=True,
     )
     return {"ok": True}

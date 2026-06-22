@@ -184,15 +184,16 @@ export default function AdminDashboard() {
     setChangingPassword(true);
     try {
       await changeAdminPassword(currentPassword, newPassword);
-      toast.success("Password updated.");
+      toast.success("Password updated. Please sign in again.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      clearAdminToken();
+      navigate("/admin/login", { replace: true });
+      return;
     } catch (err) {
-      if (!handleAuthError(err)) {
-        const msg = err?.response?.data?.detail || "Could not change password.";
-        toast.error(msg);
-      }
+      const msg = err?.response?.data?.detail || "Could not change password.";
+      toast.error(msg);
     }
     setChangingPassword(false);
   };

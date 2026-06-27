@@ -32,6 +32,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -84,6 +85,56 @@ PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://strengthinorder.com
 
 # Bump this to wipe + reseed products & campaigns on next startup
 SEED_VERSION = "aegis-v4-orders-hidden-and-legacy-fifth-item"
+
+UNSUBSCRIBE_PAGE_HTML = (
+    "<html><head><style>"
+    "body{background:#06080C;color:#fff;font-family:sans-serif;"
+    "display:flex;align-items:center;justify-content:center;height:100vh;margin:0}"
+    "</style></head>"
+    "<body><p>You have been unsubscribed from AEGIS updates.</p></body></html>"
+)
+
+# ---------- SECURITY HEADERS (helmet.js-equivalent) ----------
+# style-src allows 'unsafe-inline' because Radix UI's scroll-lock (used by
+# Dialog/Popover/DropdownMenu) injects <style> tags at runtime that can't be
+# pinned with a hash or nonce on a statically-served SPA. script-src stays
+# strict since that's the directive that actually matters for XSS. img-src
+# allows images.unsplash.com for the /home hero background image.
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "form-action 'self'",
+        "script-src 'self' https://browser.sentry-cdn.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: https://images.unsplash.com",
+        "connect-src 'self' https://*.sentry.io",
+        "upgrade-insecure-requests",
+    ]
+)
+
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-XSS-Protection": "0",
+}
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        for header, value in SECURITY_HEADERS.items():
+            response.headers[header] = value
+        return response
+
 
 app = FastAPI(title="AEGIS API — Strength in Order")
 api_router = APIRouter(prefix="/api")
@@ -502,7 +553,7 @@ async def seed_data():
 
 
 # ---------- ROUTES ----------
-@api_router.get("/")
+@api_router.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"message": "AEGIS — Strength in Order", "status": "operational"}
 
@@ -946,11 +997,7 @@ async def newsletter_unsubscribe(email: str, sig: str):
     if not hmac.compare_digest(sig, _unsubscribe_signature(email)):
         raise HTTPException(status_code=400, detail="Invalid unsubscribe link")
     await db.newsletter.delete_many({"email": email})
-    return HTMLResponse(
-        "<html><body style='background:#06080C;color:#fff;font-family:sans-serif;"
-        "display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'>"
-        "<p>You have been unsubscribed from AEGIS updates.</p></body></html>"
-    )
+    return HTMLResponse(UNSUBSCRIBE_PAGE_HTML)
 
 
 # ---------- ADMIN ----------
@@ -1173,6 +1220,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Serves the built React app (see Dockerfile) so the API and frontend
 # can run as a single deployed service.
@@ -1180,7 +1228,7 @@ FRONTEND_BUILD_DIR = ROOT_DIR / "build"
 if FRONTEND_BUILD_DIR.is_dir():
     from fastapi.responses import FileResponse
 
-    @app.get("/{full_path:path}")
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_frontend(full_path: str):
         candidate = FRONTEND_BUILD_DIR / full_path
         if full_path and candidate.is_file():

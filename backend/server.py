@@ -47,6 +47,12 @@ NEWSLETTER_FROM_EMAIL = os.environ.get(
     "NEWSLETTER_FROM_EMAIL", "AEGIS <newsletter@strengthinorder.com>"
 ).strip()
 NEWSLETTER_ADMIN_TOKEN = os.environ.get("NEWSLETTER_ADMIN_TOKEN", "").strip()
+ENABLE_API_DOCS = os.environ.get("ENABLE_API_DOCS", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 NEWSLETTER_CONFIRMATION_REQUIRED = os.environ.get(
     "NEWSLETTER_CONFIRMATION_REQUIRED", "true"
 ).strip().lower() not in {
@@ -136,7 +142,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="AEGIS API — Strength in Order")
+# Swagger/ReDoc/OpenAPI schema are disabled by default since they expose
+# the full endpoint/parameter map to anyone; set ENABLE_API_DOCS=true locally
+# to turn them back on for development.
+app = FastAPI(
+    title="AEGIS API — Strength in Order",
+    docs_url="/docs" if ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_API_DOCS else None,
+)
 api_router = APIRouter(prefix="/api")
 
 
@@ -1224,16 +1238,26 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Serves the built React app (see Dockerfile) so the API and frontend
 # can run as a single deployed service.
-FRONTEND_BUILD_DIR = ROOT_DIR / "build"
+FRONTEND_BUILD_DIR = (ROOT_DIR / "build").resolve()
 if FRONTEND_BUILD_DIR.is_dir():
-    from fastapi.responses import FileResponse
+    from starlette.exceptions import HTTPException as StarletteHTTPException
 
-    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
-    async def serve_frontend(full_path: str):
-        candidate = FRONTEND_BUILD_DIR / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(FRONTEND_BUILD_DIR / "index.html")
+    class _SPAStaticFiles(StaticFiles):
+        # Falls back to index.html for client-side routes; path containment
+        # against "../" traversal is handled by StaticFiles.lookup_path itself.
+        async def get_response(self, path, scope):
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404:
+                    return await super().get_response("index.html", scope)
+                raise
+
+    app.mount(
+        "/",
+        _SPAStaticFiles(directory=str(FRONTEND_BUILD_DIR), html=True),
+        name="frontend",
+    )
 
 
 logging.basicConfig(

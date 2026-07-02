@@ -23,7 +23,7 @@ jobs:
       SENTRY_RELEASE: aegis-apparel@${{ github.sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
